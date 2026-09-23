@@ -718,12 +718,19 @@
             tg.expand();
         }
 
+        // Хелперы даты объявляем ДО использования в стейте
+        function getFormattedDate(d) {
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${d.getFullYear()}-${month}-${day}`;
+        }
+
         const defaultState = {
             user: { name: 'Пользователь', xp: 0, level: 1 },
             currentDate: new Date(),
             selectedDateKey: getFormattedDate(new Date()),
             activeCreateType: 'task',
-            moodLog: {}, // { 'YYYY-MM-DD': '🙂' }
+            moodLog: {},
             tasks: [],
             habits: [],
             finances: []
@@ -771,12 +778,6 @@
             tg?.HapticFeedback?.impactOccurred('light');
         }
 
-        function getFormattedDate(d) {
-            const month = String(d.getMonth() + 1).padStart(2, '0');
-            const day = String(d.getDate()).padStart(2, '0');
-            return `${d.getFullYear()}-${month}-${day}`;
-        }
-
         const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
         function updateUI() {
@@ -796,7 +797,6 @@
             const maxStreak = state.habits.length > 0 ? state.habits.reduce((max, h) => Math.max(max, h.streak), 0) : 0;
             document.getElementById('dashHabitsStreak').innerText = `🔥 ${maxStreak}`;
 
-            // Настроение за сегодня
             const currentMood = state.moodLog[todayStr];
             const moodBtns = document.querySelectorAll('.mood-btn');
             moodBtns.forEach(btn => {
@@ -827,7 +827,6 @@
             document.getElementById(`tab-${tabId}`).classList.add('active');
             if (el) el.classList.add('active');
             
-            // Перерисовка графиков при переключении вкладок для корректного размера
             setTimeout(() => {
                 if(tasksChartInstance) tasksChartInstance.resize();
                 if(financeChartInstance) financeChartInstance.resize();
@@ -837,7 +836,7 @@
         function setMood(m) {
             const todayStr = getFormattedDate(new Date());
             if (state.moodLog[todayStr]) {
-                return; // уже выбрано сегодня
+                return;
             }
             triggerHaptic();
             state.moodLog[todayStr] = m;
@@ -935,8 +934,9 @@
         }
 
         function renderCalendar() {
-            const year = state.currentDate.getFullYear();
-            const month = state.currentDate.getMonth();
+            const currDate = new Date(state.currentDate);
+            const year = currDate.getFullYear();
+            const month = currDate.getMonth();
 
             document.getElementById('calendarMonthTitle').innerText = `${monthNames[month]} ${year}`;
             const grid = document.getElementById('calendarGrid');
@@ -986,6 +986,7 @@
 
         function changeMonth(delta) {
             triggerHaptic();
+            state.currentDate = new Date(state.currentDate);
             state.currentDate.setMonth(state.currentDate.getMonth() + delta);
             renderCalendar();
         }
