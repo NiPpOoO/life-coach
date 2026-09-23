@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Life Coach App</title>
+    <!-- Telegram WebApp SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: var(--tg-theme-bg-color, #f4f5f9);
+            --text-color: var(--tg-theme-text-color, #1f2937);
+            --hint-color: var(--tg-theme-hint-color, #9ca3af);
+            --button-color: var(--tg-theme-button-color, #3b82f6);
+            --button-text-color: var(--tg-theme-button-text-color, #ffffff);
+            --secondary-bg: var(--tg-theme-secondary-bg-color, #ffffff);
+            --card-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            padding-bottom: 80px;
+            user-select: none;
+        }
+
+        /* --- Шапка приложения --- */
+        .app-header {
+            background-color: var(--secondary-bg);
+            padding: 16px 20px;
+            box-shadow: var(--card-shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--button-color), var(--accent-purple));
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .user-info .name {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .user-info .level-tag {
+            font-size: 12px;
+            color: var(--button-color);
+            font-weight: 600;
+        }
+
+        .xp-container {
+            text-align: right;
+        }
+
+        .xp-bar-bg {
+            width: 80px;
+            height: 8px;
+            background-color: var(--bg-color);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .xp-bar-fill {
+            height: 100%;
+            background-color: var(--accent-green);
+            width: 65%;
+            transition: width 0.3s ease;
+        }
+
+        /* --- Экранная навигация --- */
+        .tab-content {
+            display: none;
+            padding: 16px;
+            animation: fadeIn 0.25s ease-in-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Карточки --- */
+        .card {
+            background-color: var(--secondary-bg);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .card-title {
+            font-size: 16px;
+            font-weight: 700;
+            margin-top: 0;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* --- Дашборд Виджеты --- */
+        .quote-card {
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            color: #ffffff;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .quote-card p {
+            margin: 0;
+            font-style: italic;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .quote-author {
+            margin-top: 8px !important;
+            font-size: 12px !important;
+            font-style: normal !important;
+            opacity: 0.9;
+            text-align: right;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .stat-box {
+            background-color: var(--bg-color);
+            padding: 12px;
+            border-radius: 12px;
+            text-align: center;
+        }
+
+        .stat-box .val {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--button-color);
+        }
+
+        .stat-box .lbl {
+            font-size: 12px;
+            color: var(--hint-color);
+            margin-top: 2px;
+        }
+
+        .mood-selector {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .mood-btn {
+            flex: 1;
+            background: var(--bg-color);
+            border: 2px solid transparent;
+            border-radius: 12px;
+            padding: 8px 0;
+            font-size: 22px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+
+        .mood-btn.selected {
+            border-color: var(--button-color);
+            transform: scale(1.1);
+        }
+
+        /* --- Календарь --- */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+            text-align: center;
+        }
+
+        .weekday {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--hint-color);
+            padding-bottom: 6px;
+        }
+
+        .day-cell {
+            background-color: var(--bg-color);
+            aspect-ratio: 1;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .day-cell.today {
+            border: 2px solid var(--button-color);
+        }
+
+        .day-cell.selected {
+            background-color: var(--button-color);
+            color: #ffffff;
+        }
+
+        .day-cell.empty {
+            background-color: transparent;
+            cursor: default;
+        }
+
+        .day-dots {
+            display: flex;
+            gap: 2px;
+            position: absolute;
+            bottom: 4px;
+        }
+
+        .dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+        }
+
+        .dot.task { background-color: var(--button-color); }
+        .dot.finance { background-color: var(--accent-green); }
+        .day-cell.selected .dot { background-color: #ffffff; }
+
+        /* --- Списки Задач и Привычек --- */
+        .list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background-color: var(--bg-color);
+            border-radius: 12px;
+            margin-bottom: 8px;
+        }
+
+        .list-item-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .custom-checkbox {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            border: 2px solid var(--hint-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .custom-checkbox.checked {
+            background-color: var(--accent-green);
+            border-color: var(--accent-green);
+            color: #fff;
+        }
+
+        .task-title.done {
+            text-decoration: line-through;
+            color: var(--hint-color);
+        }
+
+        .streak-badge {
+            background: #fef3c7;
+            color: #d97706;
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: bold;
+        }
+
+        /* --- Финансы --- */
+        .finance-summary {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            background: var(--bg-color);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+
+        .amount.plus { color: var(--accent-green); font-weight: bold; }
+        .amount.minus { color: var(--accent-red); font-weight: bold; }
+
+        /* --- Нижняя навигация --- */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 65px;
+            background-color: var(--secondary-bg);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+            z-index: 1000;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 3px;
+            color: var(--hint-color);
+            font-size: 11px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            width: 20%;
+        }
+
+        .nav-item.active {
+            color: var(--button-color);
+            font-weight: 600;
+        }
+
+        .nav-icon {
+            font-size: 20px;
+        }
+
+        .add-fab {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--button-color), var(--accent-purple));
+            color: #fff;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            cursor: pointer;
+            margin-top: -20px;
+        }
+
+        /* --- Модальное окно --- */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 2000;
+            align-items: flex-end;
+        }
+
+        .modal.open {
+            display: flex;
+        }
+
+        .modal-content {
+            background-color: var(--secondary-bg);
+            width: 100%;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            padding: 20px;
+            animation: slideUp 0.3s ease-out;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 14px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--hint-color);
+            margin-bottom: 4px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--hint-color);
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-size: 15px;
+            outline: none;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            background-color: var(--button-color);
+            color: var(--button-text-color);
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .type-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .type-btn {
+            flex: 1;
+            padding: 10px;
+            border-radius: 10px;
+            border: 1px solid var(--hint-color);
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .type-btn.active {
+            background-color: var(--button-color);
+            color: #fff;
+            border-color: var(--button-color);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Шапка приложения -->
+    <header class="app-header">
+        <div class="user-profile">
+            <div class="avatar" id="userAvatar">U</div>
+            <div class="user-info">
+                <div class="name" id="userName">Пользователь</div>
+                <div class="level-tag" id="userLevel">Уровень 1 • Новичок</div>
+            </div>
+        </div>
+        <div class="xp-container">
+            <span style="font-size: 12px; font-weight: bold; color: var(--accent-green);" id="xpText">150 XP</span>
+            <div class="xp-bar-bg">
+                <div class="xp-bar-fill" id="xpBar" style="width: 30%;"></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Вкладка 1: Дашборд -->
+    <main id="tab-dashboard" class="tab-content active">
+        <div class="quote-card">
+            <p id="quoteText">«Большие изменения начинаются с маленьких ежедневных действий.»</p>
+            <div class="quote-author">— Life Coach</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Как ваше настроение сегодня?</div>
+            <div class="mood-selector">
+                <button class="mood-btn" onclick="setMood('😭')">😭</button>
+                <button class="mood-btn" onclick="setMood('🙁')">🙁</button>
+                <button class="mood-btn" onclick="setMood('😐')">😐</button>
+                <button class="mood-btn" onclick="setMood('🙂')">🙂</button>
+                <button class="mood-btn" onclick="setMood('🔥')">🔥</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Статистика дня</div>
+            <div class="grid-2">
+                <div class="stat-box">
+                    <div class="val" id="dashCompletedTasks">0/0</div>
+                    <div class="lbl">Задач выполнено</div>
+                </div>
+                <div class="stat-box">
+                    <div class="val" id="dashHabitsStreak">🔥 0</div>
+                    <div class="lbl">Серия привычек</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Главный фокус на сегодня</div>
+            <div id="dashTodayTasks"></div>
+        </div>
+    </main>
+
+    <!-- Вкладка 2: Календарь -->
+    <main id="tab-calendar" class="tab-content">
+        <div class="card">
+            <div class="calendar-header">
+                <button class="form-control" style="width: auto; padding: 6px 12px;" onclick="changeMonth(-1)">◄</button>
+                <h3 id="calendarMonthTitle" style="margin: 0;">Сентябрь 2026</h3>
+                <button class="form-control" style="width: auto; padding: 6px 12px;" onclick="changeMonth(1)">►</button>
+            </div>
+
+            <div class="calendar-grid">
+                <div class="weekday">Пн</div>
+                <div class="weekday">Вт</div>
+                <div class="weekday">Ср</div>
+                <div class="weekday">Чт</div>
+                <div class="weekday">Пт</div>
+                <div class="weekday">Сб</div>
+                <div class="weekday">Вс</div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" id="selectedDateTitle">Выберите дату</div>
+            <div id="selectedDateEvents">
+                <p style="color: var(--hint-color); font-size: 14px;">Нажмите на день в календаре для подробностей.</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Вкладка 3: Задачи и Привычки -->
+    <main id="tab-tasks" class="tab-content">
+        <div class="card">
+            <div class="card-title">Привычки</div>
+            <div id="habitsList"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Все задачи</div>
+            <div id="allTasksList"></div>
+        </div>
+    </main>
+
+    <!-- Вкладка 4: Финансы и Рефлексия -->
+    <main id="tab-finance" class="tab-content">
+        <div class="card">
+            <div class="card-title">Баланс и Финансы</div>
+            <div class="finance-summary">
+                <div>
+                    <div style="font-size: 12px; color: var(--hint-color);">Доходы</div>
+                    <div class="amount plus" id="totalIncome">+0 ₽</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; color: var(--hint-color);">Расходы</div>
+                    <div class="amount minus" id="totalExpense">-0 ₽</div>
+                </div>
+            </div>
+            <div id="transactionsList"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Вечерняя рефлексия</div>
+            <div class="form-group">
+                <label>Заметки и благодарности дня</label>
+                <textarea id="reflectionNote" class="form-control" rows="3" placeholder="Что сегодня прошло отлично?"></textarea>
+            </div>
+            <button class="btn-primary" onclick="saveReflection()">Сохранить рефлексию</button>
+        </div>
+    </main>
+
+    <!-- Нижнее меню навигации -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab('dashboard', this)">
+            <span class="nav-icon">🏠</span>
+            <span>Главная</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('calendar', this)">
+            <span class="nav-icon">📅</span>
+            <span>Календарь</span>
+        </button>
+        <button class="add-fab" onclick="openModal()">+</button>
+        <button class="nav-item" onclick="switchTab('tasks', this)">
+            <span class="nav-icon">🎯</span>
+            <span>Задачи</span>
+        </button>
+        <button class="nav-item" onclick="switchTab('finance', this)">
+            <span class="nav-icon">📊</span>
+            <span>Финансы</span>
+        </button>
+    </nav>
+
+    <!-- Всплывающее модальное окно добавления -->
+    <div class="modal" id="addModal">
+        <div class="modal-content">
+            <div class="card-title">
+                <span>Создать новое</span>
+                <span style="cursor: pointer; color: var(--hint-color);" onclick="closeModal()">✕</span>
+            </div>
+
+            <div class="type-selector">
+                <button class="type-btn active" id="typeTaskBtn" onclick="setCreateType('task')">Задача</button>
+                <button class="type-btn" id="typeHabitBtn" onclick="setCreateType('habit')">Привычка</button>
+                <button class="type-btn" id="typeFinanceBtn" onclick="setCreateType('finance')">Расход/Доход</button>
+            </div>
+
+            <form id="createForm" onsubmit="handleCreate(event)">
+                <div class="form-group">
+                    <label>Название / Описание</label>
+                    <input type="text" id="inputTitle" class="form-control" placeholder="Введите название..." required />
+                </div>
+
+                <div class="form-group" id="dateGroup">
+                    <label>Дата</label>
+                    <input type="date" id="inputDate" class="form-control" required />
+                </div>
+
+                <div class="form-group" id="amountGroup" style="display: none;">
+                    <label>Сумма (₽)</label>
+                    <input type="number" id="inputAmount" class="form-control" placeholder="0" />
+                </div>
+
+                <button type="submit" class="btn-primary">Сохранить</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- Telegram WebApp Инициализация ---
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+        }
+
+        // --- Состояние Приложения ---
+        let state = {
+            user: { name: 'Алексей', xp: 180, level: 2 },
+            currentDate: new Date(),
+            selectedDateKey: getFormattedDate(new Date()),
+            activeCreateType: 'task',
+            mood: '🙂',
+            tasks: [
+                { id: 1, title: 'Провести утреннюю зарядку', date: getFormattedDate(new Date()), done: true },
+                { id: 2, title: 'Изучить материалы по проекту', date: getFormattedDate(new Date()), done: false }
+            ],
+            habits: [
+                { id: 1, title: 'Пить 2л воды', streak: 5, doneToday: true },
+                { id: 2, title: 'Чтение 20 минут', streak: 3, doneToday: false }
+            ],
+            finances: [
+                { id: 1, title: 'Кофе', amount: -250, type: 'expense', date: getFormattedDate(new Date()) },
+                { id: 2, title: 'Фриланс проект', amount: 5000, type: 'income', date: getFormattedDate(new Date()) }
+            ]
+        };
+
+        // Загрузка из localStorage
+        function loadData() {
+            const saved = localStorage.getItem('lifeCoachData');
+            if (saved) {
+                try { state = JSON.parse(saved); state.currentDate = new Date(); } catch(e){}
+            }
+            if (tg?.initDataUnsafe?.user) {
+                state.user.name = tg.initDataUnsafe.user.first_name || 'Пользователь';
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('lifeCoachData', JSON.stringify(state));
+            updateUI();
+        }
+
+        function triggerHaptic() {
+            tg?.HapticFeedback?.impactOccurred('light');
+        }
+
+        // --- Вспомогательные функции ---
+        function getFormattedDate(d) {
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${d.getFullYear()}-${month}-${day}`;
+        }
+
+        const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+
+        // --- Обновление UI ---
+        function updateUI() {
+            // Профиль & XP
+            document.getElementById('userName').innerText = state.user.name;
+            document.getElementById('userAvatar').innerText = state.user.name[0] || 'U';
+            document.getElementById('userLevel').innerText = `Уровень ${state.user.level} • Прогресс`;
+            document.getElementById('xpText').innerText = `${state.user.xp} XP`;
+            document.getElementById('xpBar').style.width = `${(state.user.xp % 100)}%`;
+
+            // Статистика дашборда
+            const todayStr = getFormattedDate(new Date());
+            const todayTasks = state.tasks.filter(t => t.date === todayStr);
+            const doneTasks = todayTasks.filter(t => t.done).length;
+            document.getElementById('dashCompletedTasks').innerText = `${doneTasks}/${todayTasks.length}`;
+
+            const maxStreak = state.habits.reduce((max, h) => Math.max(max, h.streak), 0);
+            document.getElementById('dashHabitsStreak').innerText = `🔥 ${maxStreak}`;
+
+            renderTodayTasks();
+            renderHabits();
+            renderAllTasks();
+            renderCalendar();
+            renderFinances();
+        }
+
+        // --- Навигация Вкладок ---
+        function switchTab(tabId, el) {
+            triggerHaptic();
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            if (el) el.classList.add('active');
+        }
+
+        // --- Настроение ---
+        function setMood(m) {
+            triggerHaptic();
+            state.mood = m;
+            document.querySelectorAll('.mood-btn').forEach(btn => {
+                btn.classList.toggle('selected', btn.innerText === m);
+            });
+            addXP(10);
+            saveData();
+        }
+
+        function addXP(amount) {
+            state.user.xp += amount;
+            state.user.level = Math.floor(state.user.xp / 100) + 1;
+        }
+
+        // --- Дашборд ---
+        function renderTodayTasks() {
+            const todayStr = getFormattedDate(new Date());
+            const list = document.getElementById('dashTodayTasks');
+            const tasks = state.tasks.filter(t => t.date === todayStr);
+
+            if (tasks.length === 0) {
+                list.innerHTML = `<p style="color:var(--hint-color); font-size:14px; margin:0;">На сегодня задач нет.</p>`;
+                return;
+            }
+
+            list.innerHTML = tasks.map(t => `
+                <div class="list-item">
+                    <div class="list-item-left">
+                        <div class="custom-checkbox ${t.done ? 'checked' : ''}" onclick="toggleTask(${t.id})">
+                            ${t.done ? '✓' : ''}
+                        </div>
+                        <span class="task-title ${t.done ? 'done' : ''}">${t.title}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- Задачи ---
+        function toggleTask(id) {
+            triggerHaptic();
+            const task = state.tasks.find(t => t.id === id);
+            if (task) {
+                task.done = !task.done;
+                if (task.done) addXP(15);
+                saveData();
+            }
+        }
+
+        function renderAllTasks() {
+            const container = document.getElementById('allTasksList');
+            if (state.tasks.length === 0) {
+                container.innerHTML = `<p style="color:var(--hint-color); font-size:14px;">Список задач пуст.</p>`;
+                return;
+            }
+
+            container.innerHTML = state.tasks.map(t => `
+                <div class="list-item">
+                    <div class="list-item-left">
+                        <div class="custom-checkbox ${t.done ? 'checked' : ''}" onclick="toggleTask(${t.id})">
+                            ${t.done ? '✓' : ''}
+                        </div>
+                        <div>
+                            <div class="task-title ${t.done ? 'done' : ''}">${t.title}</div>
+                            <div style="font-size:11px; color:var(--hint-color);">${t.date}</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- Привычки ---
+        function renderHabits() {
+            const container = document.getElementById('habitsList');
+            container.innerHTML = state.habits.map(h => `
+                <div class="list-item">
+                    <div class="list-item-left">
+                        <div class="custom-checkbox ${h.doneToday ? 'checked' : ''}" onclick="toggleHabit(${h.id})">
+                            ${h.doneToday ? '✓' : ''}
+                        </div>
+                        <span class="task-title ${h.doneToday ? 'done' : ''}">${h.title}</span>
+                    </div>
+                    <span class="streak-badge">🔥 ${h.streak} дн.</span>
+                </div>
+            `).join('');
+        }
+
+        function toggleHabit(id) {
+            triggerHaptic();
+            const h = state.habits.find(item => item.id === id);
+            if (h) {
+                h.doneToday = !h.doneToday;
+                h.streak += h.doneToday ? 1 : -1;
+                if (h.doneToday) addXP(20);
+                saveData();
+            }
+        }
+
+        // --- Календарь ---
+        function renderCalendar() {
+            const year = state.currentDate.getFullYear();
+            const month = state.currentDate.getMonth();
+
+            document.getElementById('calendarMonthTitle').innerText = `${monthNames[month]} ${year}`;
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            const shift = (firstDayIndex === 0) ? 6 : firstDayIndex - 1;
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            for (let i = 0; i < shift; i++) {
+                const emptyCell = document.createElement('div');
+                emptyCell.className = 'day-cell empty';
+                grid.appendChild(emptyCell);
+            }
+
+            const todayStr = getFormattedDate(new Date());
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const dayCell = document.createElement('div');
+                dayCell.className = 'day-cell';
+                dayCell.innerText = day;
+
+                const formattedMonth = String(month + 1).padStart(2, '0');
+                const formattedDay = String(day).padStart(2, '0');
+                const dateKey = `${year}-${formattedMonth}-${formattedDay}`;
+
+                if (dateKey === todayStr) dayCell.classList.add('today');
+                if (dateKey === state.selectedDateKey) dayCell.classList.add('selected');
+
+                // Индикаторы точек
+                const hasTask = state.tasks.some(t => t.date === dateKey);
+                const hasFinance = state.finances.some(f => f.date === dateKey);
+
+                if (hasTask || hasFinance) {
+                    const dotsDiv = document.createElement('div');
+                    dotsDiv.className = 'day-dots';
+                    if (hasTask) dotsDiv.innerHTML += `<div class="dot task"></div>`;
+                    if (hasFinance) dotsDiv.innerHTML += `<div class="dot finance"></div>`;
+                    dayCell.appendChild(dotsDiv);
+                }
+
+                dayCell.onclick = () => selectCalendarDate(dateKey);
+                grid.appendChild(dayCell);
+            }
+
+            renderSelectedDateEvents();
+        }
+
+        function changeMonth(delta) {
+            triggerHaptic();
+            state.currentDate.setMonth(state.currentDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function selectCalendarDate(dateKey) {
+            triggerHaptic();
+            state.selectedDateKey = dateKey;
+            renderCalendar();
+        }
+
+        function renderSelectedDateEvents() {
+            document.getElementById('selectedDateTitle').innerText = `События: ${state.selectedDateKey}`;
+            const container = document.getElementById('selectedDateEvents');
+
+            const dayTasks = state.tasks.filter(t => t.date === state.selectedDateKey);
+            const dayFinances = state.finances.filter(f => f.date === state.selectedDateKey);
+
+            if (dayTasks.length === 0 && dayFinances.length === 0) {
+                container.innerHTML = `<p style="color: var(--hint-color); font-size: 14px;">Нет записей на эту дату.</p>`;
+                return;
+            }
+
+            let html = '';
+            dayTasks.forEach(t => {
+                html += `<div class="list-item"><span>📌 ${t.title}</span><span style="font-size:12px;">${t.done ? '✓ Выполнено' : '⏳ В процессе'}</span></div>`;
+            });
+            dayFinances.forEach(f => {
+                html += `<div class="list-item"><span>💰 ${f.title}</span><span class="${f.amount > 0 ? 'amount plus' : 'amount minus'}">${f.amount} ₽</span></div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // --- Финансы ---
+        function renderFinances() {
+            const income = state.finances.filter(f => f.amount > 0).reduce((acc, f) => acc + f.amount, 0);
+            const expense = state.finances.filter(f => f.amount < 0).reduce((acc, f) => acc + Math.abs(f.amount), 0);
+
+            document.getElementById('totalIncome').innerText = `+${income} ₽`;
+            document.getElementById('totalExpense').innerText = `-${expense} ₽`;
+
+            const list = document.getElementById('transactionsList');
+            list.innerHTML = state.finances.map(f => `
+                <div class="list-item">
+                    <div>
+                        <div style="font-weight:600;">${f.title}</div>
+                        <div style="font-size:11px; color:var(--hint-color);">${f.date}</div>
+                    </div>
+                    <span class="${f.amount > 0 ? 'amount plus' : 'amount minus'}">
+                        ${f.amount > 0 ? '+' : ''}${f.amount} ₽
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function saveReflection() {
+            triggerHaptic();
+            const note = document.getElementById('reflectionNote').value;
+            if (note) {
+                addXP(25);
+                alert('Рефлексия сохранена! Получено +25 XP');
+                document.getElementById('reflectionNote').value = '';
+                saveData();
+            }
+        }
+
+        // --- Модальное окно создания ---
+        function openModal() {
+            triggerHaptic();
+            document.getElementById('inputDate').value = getFormattedDate(new Date());
+            document.getElementById('addModal').classList.add('open');
+        }
+
+        function closeModal() {
+            document.getElementById('addModal').classList.remove('open');
+        }
+
+        function setCreateType(type) {
+            triggerHaptic();
+            state.activeCreateType = type;
+            document.getElementById('typeTaskBtn').classList.toggle('active', type === 'task');
+            document.getElementById('typeHabitBtn').classList.toggle('active', type === 'habit');
+            document.getElementById('typeFinanceBtn').classList.toggle('active', type === 'finance');
+
+            document.getElementById('amountGroup').style.display = (type === 'finance') ? 'block' : 'none';
+            document.getElementById('dateGroup').style.display = (type === 'habit') ? 'none' : 'block';
+        }
+
+        function handleCreate(e) {
+            e.preventDefault();
+            triggerHaptic();
+
+            const title = document.getElementById('inputTitle').value;
+            const date = document.getElementById('inputDate').value;
+            const amount = parseFloat(document.getElementById('inputAmount').value) || 0;
+
+            if (state.activeCreateType === 'task') {
+                state.tasks.push({ id: Date.now(), title, date, done: false });
+                addXP(10);
+            } else if (state.activeCreateType === 'habit') {
+                state.habits.push({ id: Date.now(), title, streak: 0, doneToday: false });
+                addXP(15);
+            } else if (state.activeCreateType === 'finance') {
+                state.finances.push({ id: Date.now(), title, amount, date });
+                addXP(10);
+            }
+
+            document.getElementById('inputTitle').value = '';
+            document.getElementById('inputAmount').value = '';
+            closeModal();
+            saveData();
+        }
+
+        // Инициализация при старте
+        loadData();
+        document.getElementById('inputDate').value = getFormattedDate(new Date());
+        updateUI();
+    </script>
+</body>
+</html>
