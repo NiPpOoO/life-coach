@@ -6,6 +6,8 @@
     <title>Life Coach App</title>
     <!-- Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Chart.js для диаграмм -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --bg-color: var(--tg-theme-bg-color, #f4f5f9);
@@ -221,6 +223,11 @@
         .mood-btn.selected {
             border-color: var(--button-color);
             transform: scale(1.1);
+        }
+        
+        .mood-btn.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         /* --- Календарь --- */
@@ -499,6 +506,15 @@
             color: #fff;
             border-color: var(--button-color);
         }
+
+        .chart-container {
+            position: relative;
+            height: 180px;
+            width: 100%;
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
@@ -531,14 +547,15 @@
         </div>
 
         <div class="card">
-            <div class="card-title">Как ваше настроение сегодня?</div>
-            <div class="mood-selector">
+            <div class="card-title">Настроение сегодня</div>
+            <div class="mood-selector" id="moodSelector">
                 <button class="mood-btn" onclick="setMood('😭')">😭</button>
                 <button class="mood-btn" onclick="setMood('🙁')">🙁</button>
                 <button class="mood-btn" onclick="setMood('😐')">😐</button>
                 <button class="mood-btn" onclick="setMood('🙂')">🙂</button>
                 <button class="mood-btn" onclick="setMood('🔥')">🔥</button>
             </div>
+            <div id="moodHint" style="font-size: 11px; color: var(--hint-color); text-align: center; margin-top: 6px;"></div>
         </div>
 
         <div class="card">
@@ -552,6 +569,9 @@
                     <div class="val" id="dashHabitsStreak">🔥 0</div>
                     <div class="lbl">Серия привычек</div>
                 </div>
+            </div>
+            <div class="chart-container">
+                <canvas id="tasksChart"></canvas>
             </div>
         </div>
 
@@ -617,7 +637,12 @@
                     <div class="amount minus" id="totalExpense">-0 ₽</div>
                 </div>
             </div>
-            <div id="transactionsList"></div>
+            
+            <div class="chart-container">
+                <canvas id="financeChart"></canvas>
+            </div>
+
+            <div id="transactionsList" style="margin-top: 15px;"></div>
         </div>
 
         <div class="card">
@@ -693,21 +718,21 @@
             tg.expand();
         }
 
-        // --- Дефолтное пустое состояние (чистый старт) ---
         const defaultState = {
             user: { name: 'Пользователь', xp: 0, level: 1 },
             currentDate: new Date(),
             selectedDateKey: getFormattedDate(new Date()),
             activeCreateType: 'task',
-            mood: null,
+            moodLog: {}, // { 'YYYY-MM-DD': '🙂' }
             tasks: [],
             habits: [],
             finances: []
         };
 
         let state = JSON.parse(JSON.stringify(defaultState));
+        let tasksChartInstance = null;
+        let financeChartInstance = null;
 
-        // Загрузка из localStorage
         function loadData() {
             const saved = localStorage.getItem('lifeCoachData');
             if (saved) {
@@ -717,7 +742,7 @@
                     state.tasks = parsed.tasks || [];
                     state.habits = parsed.habits || [];
                     state.finances = parsed.finances || [];
-                    state.mood = parsed.mood || null;
+                    state.moodLog = parsed.moodLog || {};
                 } catch(e){}
             }
             if (tg?.initDataUnsafe?.user) {
@@ -730,7 +755,6 @@
             updateUI();
         }
 
-        // Сброс прогресса
         function resetAppData() {
             if (confirm('Сбросить весь прогресс, задачи и вернуть приложение к нулевому состоянию?')) {
                 localStorage.removeItem('lifeCoachData');
@@ -755,7 +779,6 @@
 
         const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
-        // --- Обновление UI ---
         function updateUI() {
             document.getElementById('userName').innerText = state.user.name;
             document.getElementById('userAvatar').innerText = state.user.name[0] || 'U';
@@ -765,7 +788,6 @@
             const xpInLevel = state.user.xp % 100;
             document.getElementById('xpBar').style.width = `${xpInLevel}%`;
 
-            // Статистика дашборда
             const todayStr = getFormattedDate(new Date());
             const todayTasks = state.tasks.filter(t => t.date === todayStr);
             const doneTasks = todayTasks.filter(t => t.done).length;
@@ -774,17 +796,27 @@
             const maxStreak = state.habits.length > 0 ? state.habits.reduce((max, h) => Math.max(max, h.streak), 0) : 0;
             document.getElementById('dashHabitsStreak').innerText = `🔥 ${maxStreak}`;
 
-            if (state.mood) {
-                document.querySelectorAll('.mood-btn').forEach(btn => {
-                    btn.classList.toggle('selected', btn.innerText === state.mood);
-                });
-            }
+            // Настроение за сегодня
+            const currentMood = state.moodLog[todayStr];
+            const moodBtns = document.querySelectorAll('.mood-btn');
+            moodBtns.forEach(btn => {
+                if (currentMood) {
+                    btn.classList.toggle('selected', btn.innerText === currentMood);
+                    btn.classList.add('disabled');
+                } else {
+                    btn.classList.remove('selected', 'disabled');
+                }
+            });
+            document.getElementById('moodHint').innerText = currentMood 
+                ? 'Настроение на сегодня уже записано.' 
+                : 'Вы можете выбрать настроение 1 раз в день (+10 XP).';
 
             renderTodayTasks();
             renderHabits();
             renderAllTasks();
             renderCalendar();
             renderFinances();
+            updateCharts(todayTasks.length, doneTasks);
         }
 
         function switchTab(tabId, el) {
@@ -794,14 +826,21 @@
 
             document.getElementById(`tab-${tabId}`).classList.add('active');
             if (el) el.classList.add('active');
+            
+            // Перерисовка графиков при переключении вкладок для корректного размера
+            setTimeout(() => {
+                if(tasksChartInstance) tasksChartInstance.resize();
+                if(financeChartInstance) financeChartInstance.resize();
+            }, 50);
         }
 
         function setMood(m) {
+            const todayStr = getFormattedDate(new Date());
+            if (state.moodLog[todayStr]) {
+                return; // уже выбрано сегодня
+            }
             triggerHaptic();
-            state.mood = m;
-            document.querySelectorAll('.mood-btn').forEach(btn => {
-                btn.classList.toggle('selected', btn.innerText === m);
-            });
+            state.moodLog[todayStr] = m;
             addXP(10);
             saveData();
         }
@@ -895,7 +934,6 @@
             }
         }
 
-        // --- Календарь и интерактив выбранной даты ---
         function renderCalendar() {
             const year = state.currentDate.getFullYear();
             const month = state.currentDate.getMonth();
@@ -1007,19 +1045,21 @@
             const list = document.getElementById('transactionsList');
             if (state.finances.length === 0) {
                 list.innerHTML = `<p style="color:var(--hint-color); font-size:14px;">Финансовых записей нет.</p>`;
-                return;
-            }
-            list.innerHTML = state.finances.map(f => `
-                <div class="list-item">
-                    <div>
-                        <div style="font-weight:600;">${f.title}</div>
-                        <div style="font-size:11px; color:var(--hint-color);">${f.date}</div>
+            } else {
+                list.innerHTML = state.finances.map(f => `
+                    <div class="list-item">
+                        <div>
+                            <div style="font-weight:600;">${f.title}</div>
+                            <div style="font-size:11px; color:var(--hint-color);">${f.date}</div>
+                        </div>
+                        <span class="${f.amount > 0 ? 'amount plus' : 'amount minus'}">
+                            ${f.amount > 0 ? '+' : ''}${f.amount} ₽
+                        </span>
                     </div>
-                    <span class="${f.amount > 0 ? 'amount plus' : 'amount minus'}">
-                        ${f.amount > 0 ? '+' : ''}${f.amount} ₽
-                    </span>
-                </div>
-            `).join('');
+                `).join('');
+            }
+
+            updateFinanceChart(income, expense);
         }
 
         function saveReflection() {
@@ -1035,10 +1075,63 @@
             }
         }
 
+        // --- Диаграммы (Chart.js) ---
+        function updateCharts(totalTasks, doneTasks) {
+            const ctx = document.getElementById('tasksChart').getContext('2d');
+            const leftTasks = Math.max(0, totalTasks - doneTasks);
+
+            if (tasksChartInstance) {
+                tasksChartInstance.data.datasets[0].data = [doneTasks, leftTasks];
+                tasksChartInstance.update();
+            } else {
+                tasksChartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Выполнено', 'Осталось'],
+                        datasets: [{
+                            data: [doneTasks, leftTasks],
+                            backgroundColor: ['#10b981', '#e5e7eb'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } }
+                    }
+                });
+            }
+        }
+
+        function updateFinanceChart(income, expense) {
+            const ctx = document.getElementById('financeChart').getContext('2d');
+            
+            if (financeChartInstance) {
+                financeChartInstance.data.datasets[0].data = [income, expense];
+                financeChartInstance.update();
+            } else {
+                financeChartInstance = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Доходы', 'Расходы'],
+                        datasets: [{
+                            data: [income, expense],
+                            backgroundColor: ['#10b981', '#ef4444'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } }
+                    }
+                });
+            }
+        }
+
         // --- Модальное окно создания ---
         function openModal() {
             triggerHaptic();
-            // По умолчанию подставляем выбранную в календаре дату
             document.getElementById('inputDate').value = state.selectedDateKey || getFormattedDate(new Date());
             document.getElementById('addModal').classList.add('open');
         }
@@ -1083,7 +1176,6 @@
             saveData();
         }
 
-        // Инициализация при старте
         loadData();
         updateUI();
     </script>
