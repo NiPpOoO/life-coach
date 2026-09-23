@@ -81,6 +81,10 @@
 
         .xp-container {
             text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
         }
 
         .xp-bar-bg {
@@ -89,14 +93,27 @@
             background-color: var(--bg-color);
             border-radius: 4px;
             overflow: hidden;
-            margin-top: 4px;
         }
 
         .xp-bar-fill {
             height: 100%;
             background-color: var(--accent-green);
-            width: 65%;
+            width: 0%;
             transition: width 0.3s ease;
+        }
+
+        .reset-btn {
+            background: none;
+            border: none;
+            font-size: 11px;
+            color: var(--hint-color);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .reset-btn:hover {
+            color: var(--accent-red);
+            background: rgba(239, 68, 68, 0.1);
         }
 
         /* --- Экранная навигация --- */
@@ -288,6 +305,7 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            flex: 1;
         }
 
         .custom-checkbox {
@@ -300,12 +318,17 @@
             justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
+            flex-shrink: 0;
         }
 
         .custom-checkbox.checked {
             background-color: var(--accent-green);
             border-color: var(--accent-green);
             color: #fff;
+        }
+
+        .task-title {
+            word-break: break-word;
         }
 
         .task-title.done {
@@ -409,6 +432,8 @@
             border-top-right-radius: 20px;
             padding: 20px;
             animation: slideUp 0.3s ease-out;
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         @keyframes slideUp {
@@ -466,6 +491,7 @@
             color: var(--text-color);
             font-weight: 600;
             cursor: pointer;
+            font-size: 12px;
         }
 
         .type-btn.active {
@@ -487,9 +513,12 @@
             </div>
         </div>
         <div class="xp-container">
-            <span style="font-size: 12px; font-weight: bold; color: var(--accent-green);" id="xpText">150 XP</span>
+            <div>
+                <span style="font-size: 12px; font-weight: bold; color: var(--accent-green);" id="xpText">0 XP</span>
+                <button class="reset-btn" onclick="resetAppData()" title="Сбросить прогресс">🔄 Сброс</button>
+            </div>
             <div class="xp-bar-bg">
-                <div class="xp-bar-fill" id="xpBar" style="width: 30%;"></div>
+                <div class="xp-bar-fill" id="xpBar" style="width: 0%;"></div>
             </div>
         </div>
     </header>
@@ -532,7 +561,7 @@
         </div>
     </main>
 
-    <!-- Вкладка 2: Календарь -->
+    <!-- Вкладка 2: Календарь и Задачи дня -->
     <main id="tab-calendar" class="tab-content">
         <div class="card">
             <div class="calendar-header">
@@ -554,9 +583,9 @@
         </div>
 
         <div class="card">
-            <div class="card-title" id="selectedDateTitle">Выберите дату</div>
+            <div class="card-title" id="selectedDateTitle">События и задачи даты</div>
             <div id="selectedDateEvents">
-                <p style="color: var(--hint-color); font-size: 14px;">Нажмите на день в календаре для подробностей.</p>
+                <p style="color: var(--hint-color); font-size: 14px;">Выберите день в календаре.</p>
             </div>
         </div>
     </main>
@@ -633,7 +662,7 @@
             <div class="type-selector">
                 <button class="type-btn active" id="typeTaskBtn" onclick="setCreateType('task')">Задача</button>
                 <button class="type-btn" id="typeHabitBtn" onclick="setCreateType('habit')">Привычка</button>
-                <button class="type-btn" id="typeFinanceBtn" onclick="setCreateType('finance')">Расход/Доход</button>
+                <button class="type-btn" id="typeFinanceBtn" onclick="setCreateType('finance')">Финансы</button>
             </div>
 
             <form id="createForm" onsubmit="handleCreate(event)">
@@ -648,7 +677,7 @@
                 </div>
 
                 <div class="form-group" id="amountGroup" style="display: none;">
-                    <label>Сумма (₽)</label>
+                    <label>Сумма (₽) [Минус — расход, плюс — доход]</label>
                     <input type="number" id="inputAmount" class="form-control" placeholder="0" />
                 </div>
 
@@ -658,39 +687,38 @@
     </div>
 
     <script>
-        // --- Telegram WebApp Инициализация ---
         const tg = window.Telegram?.WebApp;
         if (tg) {
             tg.ready();
             tg.expand();
         }
 
-        // --- Состояние Приложения ---
-        let state = {
-            user: { name: 'Алексей', xp: 180, level: 2 },
+        // --- Дефолтное пустое состояние (чистый старт) ---
+        const defaultState = {
+            user: { name: 'Пользователь', xp: 0, level: 1 },
             currentDate: new Date(),
             selectedDateKey: getFormattedDate(new Date()),
             activeCreateType: 'task',
-            mood: '🙂',
-            tasks: [
-                { id: 1, title: 'Провести утреннюю зарядку', date: getFormattedDate(new Date()), done: true },
-                { id: 2, title: 'Изучить материалы по проекту', date: getFormattedDate(new Date()), done: false }
-            ],
-            habits: [
-                { id: 1, title: 'Пить 2л воды', streak: 5, doneToday: true },
-                { id: 2, title: 'Чтение 20 минут', streak: 3, doneToday: false }
-            ],
-            finances: [
-                { id: 1, title: 'Кофе', amount: -250, type: 'expense', date: getFormattedDate(new Date()) },
-                { id: 2, title: 'Фриланс проект', amount: 5000, type: 'income', date: getFormattedDate(new Date()) }
-            ]
+            mood: null,
+            tasks: [],
+            habits: [],
+            finances: []
         };
+
+        let state = JSON.parse(JSON.stringify(defaultState));
 
         // Загрузка из localStorage
         function loadData() {
             const saved = localStorage.getItem('lifeCoachData');
             if (saved) {
-                try { state = JSON.parse(saved); state.currentDate = new Date(); } catch(e){}
+                try { 
+                    const parsed = JSON.parse(saved);
+                    state.user = parsed.user || state.user;
+                    state.tasks = parsed.tasks || [];
+                    state.habits = parsed.habits || [];
+                    state.finances = parsed.finances || [];
+                    state.mood = parsed.mood || null;
+                } catch(e){}
             }
             if (tg?.initDataUnsafe?.user) {
                 state.user.name = tg.initDataUnsafe.user.first_name || 'Пользователь';
@@ -702,11 +730,23 @@
             updateUI();
         }
 
+        // Сброс прогресса
+        function resetAppData() {
+            if (confirm('Сбросить весь прогресс, задачи и вернуть приложение к нулевому состоянию?')) {
+                localStorage.removeItem('lifeCoachData');
+                state = JSON.parse(JSON.stringify(defaultState));
+                if (tg?.initDataUnsafe?.user) {
+                    state.user.name = tg.initDataUnsafe.user.first_name || 'Пользователь';
+                }
+                updateUI();
+                triggerHaptic();
+            }
+        }
+
         function triggerHaptic() {
             tg?.HapticFeedback?.impactOccurred('light');
         }
 
-        // --- Вспомогательные функции ---
         function getFormattedDate(d) {
             const month = String(d.getMonth() + 1).padStart(2, '0');
             const day = String(d.getDate()).padStart(2, '0');
@@ -717,12 +757,13 @@
 
         // --- Обновление UI ---
         function updateUI() {
-            // Профиль & XP
             document.getElementById('userName').innerText = state.user.name;
             document.getElementById('userAvatar').innerText = state.user.name[0] || 'U';
             document.getElementById('userLevel').innerText = `Уровень ${state.user.level} • Прогресс`;
             document.getElementById('xpText').innerText = `${state.user.xp} XP`;
-            document.getElementById('xpBar').style.width = `${(state.user.xp % 100)}%`;
+            
+            const xpInLevel = state.user.xp % 100;
+            document.getElementById('xpBar').style.width = `${xpInLevel}%`;
 
             // Статистика дашборда
             const todayStr = getFormattedDate(new Date());
@@ -730,8 +771,14 @@
             const doneTasks = todayTasks.filter(t => t.done).length;
             document.getElementById('dashCompletedTasks').innerText = `${doneTasks}/${todayTasks.length}`;
 
-            const maxStreak = state.habits.reduce((max, h) => Math.max(max, h.streak), 0);
+            const maxStreak = state.habits.length > 0 ? state.habits.reduce((max, h) => Math.max(max, h.streak), 0) : 0;
             document.getElementById('dashHabitsStreak').innerText = `🔥 ${maxStreak}`;
+
+            if (state.mood) {
+                document.querySelectorAll('.mood-btn').forEach(btn => {
+                    btn.classList.toggle('selected', btn.innerText === state.mood);
+                });
+            }
 
             renderTodayTasks();
             renderHabits();
@@ -740,7 +787,6 @@
             renderFinances();
         }
 
-        // --- Навигация Вкладок ---
         function switchTab(tabId, el) {
             triggerHaptic();
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -750,7 +796,6 @@
             if (el) el.classList.add('active');
         }
 
-        // --- Настроение ---
         function setMood(m) {
             triggerHaptic();
             state.mood = m;
@@ -766,14 +811,13 @@
             state.user.level = Math.floor(state.user.xp / 100) + 1;
         }
 
-        // --- Дашборд ---
         function renderTodayTasks() {
             const todayStr = getFormattedDate(new Date());
             const list = document.getElementById('dashTodayTasks');
             const tasks = state.tasks.filter(t => t.date === todayStr);
 
             if (tasks.length === 0) {
-                list.innerHTML = `<p style="color:var(--hint-color); font-size:14px; margin:0;">На сегодня задач нет.</p>`;
+                list.innerHTML = `<p style="color:var(--hint-color); font-size:14px; margin:0;">На сегодня задач нет. Нажми «+», чтобы добавить.</p>`;
                 return;
             }
 
@@ -789,7 +833,6 @@
             `).join('');
         }
 
-        // --- Задачи ---
         function toggleTask(id) {
             triggerHaptic();
             const task = state.tasks.find(t => t.id === id);
@@ -822,9 +865,12 @@
             `).join('');
         }
 
-        // --- Привычки ---
         function renderHabits() {
             const container = document.getElementById('habitsList');
+            if (state.habits.length === 0) {
+                container.innerHTML = `<p style="color:var(--hint-color); font-size:14px;">Привычки не добавлены.</p>`;
+                return;
+            }
             container.innerHTML = state.habits.map(h => `
                 <div class="list-item">
                     <div class="list-item-left">
@@ -849,7 +895,7 @@
             }
         }
 
-        // --- Календарь ---
+        // --- Календарь и интерактив выбранной даты ---
         function renderCalendar() {
             const year = state.currentDate.getFullYear();
             const month = state.currentDate.getMonth();
@@ -882,7 +928,6 @@
                 if (dateKey === todayStr) dayCell.classList.add('today');
                 if (dateKey === state.selectedDateKey) dayCell.classList.add('selected');
 
-                // Индикаторы точек
                 const hasTask = state.tasks.some(t => t.date === dateKey);
                 const hasFinance = state.finances.some(f => f.date === dateKey);
 
@@ -914,29 +959,44 @@
         }
 
         function renderSelectedDateEvents() {
-            document.getElementById('selectedDateTitle').innerText = `События: ${state.selectedDateKey}`;
+            document.getElementById('selectedDateTitle').innerText = `Задачи на ${state.selectedDateKey}`;
             const container = document.getElementById('selectedDateEvents');
 
             const dayTasks = state.tasks.filter(t => t.date === state.selectedDateKey);
             const dayFinances = state.finances.filter(f => f.date === state.selectedDateKey);
 
             if (dayTasks.length === 0 && dayFinances.length === 0) {
-                container.innerHTML = `<p style="color: var(--hint-color); font-size: 14px;">Нет записей на эту дату.</p>`;
+                container.innerHTML = `<p style="color: var(--hint-color); font-size: 14px;">Нет записей на эту дату. Нажми «+», чтобы добавить.</p>`;
                 return;
             }
 
             let html = '';
             dayTasks.forEach(t => {
-                html += `<div class="list-item"><span>📌 ${t.title}</span><span style="font-size:12px;">${t.done ? '✓ Выполнено' : '⏳ В процессе'}</span></div>`;
+                html += `
+                    <div class="list-item">
+                        <div class="list-item-left">
+                            <div class="custom-checkbox ${t.done ? 'checked' : ''}" onclick="toggleTask(${t.id})">
+                                ${t.done ? '✓' : ''}
+                            </div>
+                            <span class="task-title ${t.done ? 'done' : ''}">📌 ${t.title}</span>
+                        </div>
+                    </div>`;
             });
             dayFinances.forEach(f => {
-                html += `<div class="list-item"><span>💰 ${f.title}</span><span class="${f.amount > 0 ? 'amount plus' : 'amount minus'}">${f.amount} ₽</span></div>`;
+                html += `
+                    <div class="list-item">
+                        <div>
+                            <div style="font-weight:600;">💰 ${f.title}</div>
+                        </div>
+                        <span class="${f.amount > 0 ? 'amount plus' : 'amount minus'}">
+                            ${f.amount > 0 ? '+' : ''}${f.amount} ₽
+                        </span>
+                    </div>`;
             });
 
             container.innerHTML = html;
         }
 
-        // --- Финансы ---
         function renderFinances() {
             const income = state.finances.filter(f => f.amount > 0).reduce((acc, f) => acc + f.amount, 0);
             const expense = state.finances.filter(f => f.amount < 0).reduce((acc, f) => acc + Math.abs(f.amount), 0);
@@ -945,6 +1005,10 @@
             document.getElementById('totalExpense').innerText = `-${expense} ₽`;
 
             const list = document.getElementById('transactionsList');
+            if (state.finances.length === 0) {
+                list.innerHTML = `<p style="color:var(--hint-color); font-size:14px;">Финансовых записей нет.</p>`;
+                return;
+            }
             list.innerHTML = state.finances.map(f => `
                 <div class="list-item">
                     <div>
@@ -966,13 +1030,16 @@
                 alert('Рефлексия сохранена! Получено +25 XP');
                 document.getElementById('reflectionNote').value = '';
                 saveData();
+            } else {
+                alert('Напишите пару слов для рефлексии.');
             }
         }
 
         // --- Модальное окно создания ---
         function openModal() {
             triggerHaptic();
-            document.getElementById('inputDate').value = getFormattedDate(new Date());
+            // По умолчанию подставляем выбранную в календаре дату
+            document.getElementById('inputDate').value = state.selectedDateKey || getFormattedDate(new Date());
             document.getElementById('addModal').classList.add('open');
         }
 
@@ -996,7 +1063,7 @@
             triggerHaptic();
 
             const title = document.getElementById('inputTitle').value;
-            const date = document.getElementById('inputDate').value;
+            const date = document.getElementById('inputDate').value || state.selectedDateKey;
             const amount = parseFloat(document.getElementById('inputAmount').value) || 0;
 
             if (state.activeCreateType === 'task') {
@@ -1018,7 +1085,6 @@
 
         // Инициализация при старте
         loadData();
-        document.getElementById('inputDate').value = getFormattedDate(new Date());
         updateUI();
     </script>
 </body>
